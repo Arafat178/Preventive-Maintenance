@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial PM Management Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="toast-container"></div>
+
+    <!-- Authentication View -->
+    <div id="auth-view" class="view active-view flex-center">
+        <div class="auth-card">
+            <h2>Industrial PM System</h2>
+            <p>Equipment & Maintenance Tracker</p>
+            <form id="auth-form">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="auth-email" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="auth-password" required>
+                </div>
+                <div class="auth-actions">
+                    <button type="submit" id="btn-login" class="btn btn-primary">Login</button>
+                    <!-- Registration is disabled for public deployment by default, but UI remains for authorized creation if needed -->
+                    <button type="button" id="btn-signup" class="btn btn-secondary">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application View -->
+    <div id="app-view" class="view">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>PM System</h3>
+                <button id="mobile-menu-close" class="btn-icon mobile-only">✕</button>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#" data-target="dashboard" class="active">Dashboard</a></li>
+                <li><a href="#" data-target="equipment">Equipment</a></li>
+                <li><a href="#" data-target="pm-plans">PM Plans</a></li>
+                <li><a href="#" data-target="calendar">Calendar</a></li>
+                <li><a href="#" data-target="history">History</a></li>
+                <li><a href="#" data-target="settings">Settings</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <span id="user-display" class="text-small text-bold mb-4" style="display:block; word-break:break-all;"></span>
+                <button id="btn-logout" class="btn btn-danger btn-small">Logout</button>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="top-header">
+                <button id="mobile-menu-open" class="btn-icon mobile-only">☰</button>
+                <h2 id="page-title">Dashboard</h2>
+                <div class="header-actions">
+                    <div class="notification-wrapper">
+                        <button id="btn-notifications" class="btn-icon">🔔 <span id="notification-count" class="badge hidden">0</span></button>
+                        <div id="notification-dropdown" class="dropdown hidden">
+                            <div class="dropdown-header">Reminders</div>
+                            <ul id="notification-list"></ul>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <datalist id="eq-list-active"></datalist>
+
+                <!-- Dashboard -->
+                <section id="section-dashboard" class="content-section active-section">
+                    <div class="kpi-grid">
+                        <div class="kpi-card"><h3>Active Equipment</h3><p id="kpi-equipment">0</p></div>
+                        <div class="kpi-card"><h3>Active PM Plans</h3><p id="kpi-plans">0</p></div>
+                        <div class="kpi-card card-warning"><h3>Due Today</h3><p id="kpi-today">0</p></div>
+                        <div class="kpi-card card-danger"><h3>Overdue Tasks</h3><p id="kpi-overdue">0</p></div>
+                    </div>
+                    <div class="dashboard-tables grid-2">
+                        <div class="card">
+                            <h3>Immediate Action Required</h3>
+                            <div class="table-responsive">
+                                <table id="dash-action-table">
+                                    <thead><tr><th>ID</th><th>Equipment Name</th><th>Task</th><th>Due Date</th><th>Status</th><th>Action</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Upcoming Maintenance (Next 30 Days)</h3>
+                            <div class="table-responsive">
+                                <table id="dash-upcoming-table">
+                                    <thead><tr><th>ID</th><th>Equipment Name</th><th>Task</th><th>Due Date</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Equipment -->
+                <section id="section-equipment" class="content-section">
+                    <div class="section-header">
+                        <div class="search-bar">
+                            <input type="text" id="search-equipment" placeholder="Search ID or Name...">
+                            <select id="filter-eq-status" class="ml-2">
+                                <option value="Active">Active</option>
+                                <option value="Archived">Archived</option>
+                                <option value="All">All</option>
+                            </select>
+                        </div>
+                        <button id="btn-add-equipment" class="btn btn-primary">+ Add Equipment</button>
+                    </div>
+                    <div class="card table-responsive">
+                        <table id="equipment-table">
+                            <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- PM Plans -->
+                <section id="section-pm-plans" class="content-section">
+                    <div class="section-header">
+                        <div class="search-bar">
+                            <input type="text" id="search-pm" placeholder="Search PM Plans...">
+                            <select id="filter-pm-status" class="ml-2">
+                                <option value="Active">Active</option>
+                                <option value="Archived">Archived</option>
+                                <option value="All">All</option>
+                            </select>
+                        </div>
+                        <button id="btn-add-pm" class="btn btn-primary">+ Add PM Plan</button>
+                    </div>
+                    <div class="card table-responsive">
+                        <table id="pm-table">
+                            <thead><tr><th>ID</th><th>Equipment</th><th>Task</th><th>Interval</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Calendar -->
+                <section id="section-calendar" class="content-section">
+                    <div class="card">
+                        <div class="calendar-header">
+                            <button id="btn-cal-prev" class="btn btn-secondary">&lt; Prev</button>
+                            <h3 id="calendar-month-year"></h3>
+                            <button id="btn-cal-next" class="btn btn-secondary">Next &gt;</button>
+                        </div>
+                        <div class="calendar-grid" id="calendar-grid"></div>
+                    </div>
+                    <div id="calendar-day-details" class="card hidden mt-4">
+                        <h4 id="cal-detail-title"></h4>
+                        <ul id="cal-detail-list" class="task-list"></ul>
+                    </div>
+                </section>
+
+                <!-- History -->
+                <section id="section-history" class="content-section">
+                    <div class="section-header">
+                        <div class="date-filters">
+                            <label class="text-small text-bold">From:</label>
+                            <input type="date" id="filter-from-date">
+                            <label class="text-small text-bold">To:</label>
+                            <input type="date" id="filter-to-date">
+                            <input type="text" id="search-history" placeholder="Filter by Task/Eq ID (Client-side)">
+                            <button id="btn-load-history" class="btn btn-primary">Load Data</button>
+                            <button id="btn-export-csv" class="btn btn-secondary">Export CSV</button>
+                        </div>
+                    </div>
+                    <div class="card table-responsive">
+                        <table id="history-table">
+                            <thead><tr><th>Date</th><th>ID</th><th>Eq. Snapshot</th><th>Task Snapshot</th><th>Performed By</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="pagination-controls mt-4">
+                            <button id="btn-hist-prev" class="btn btn-secondary" disabled>&lt; Previous</button>
+                            <span id="hist-page-info" class="text-bold mx-2">Page 1</span>
+                            <button id="btn-hist-next" class="btn btn-secondary" disabled>Next &gt;</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings -->
+                <section id="section-settings" class="content-section">
+                    <div class="card max-w-md">
+                        <h3>Application Settings</h3>
+                        <form id="settings-form">
+                            <div class="form-group">
+                                <label>Display Name</label>
+                                <input type="text" id="set-name">
+                            </div>
+                            <div class="form-group">
+                                <label>Theme</label>
+                                <select id="set-theme">
+                                    <option value="light">Light Mode</option>
+                                    <option value="dark">Dark Mode</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Default Scheduling Policy</label>
+                                <select id="set-policy">
+                                    <option value="schedule">Schedule-based (Calculated from Scheduled Due Date)</option>
+                                    <option value="completion">Completion-based (Calculated from Actual Completion Date)</option>
+                                </select>
+                            </div>
+                            <div class="form-actions mt-4">
+                                <button type="submit" id="btn-save-settings" class="btn btn-primary">Save Settings</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODALS -->
+    <div id="modal-backdrop" class="modal-backdrop hidden"></div>
+
+    <!-- Equipment Modal -->
+    <div id="modal-equipment" class="modal hidden">
+        <div class="modal-header"><h3 id="modal-equip-title">Equipment</h3><button class="btn-icon btn-close-modal">✕</button></div>
+        <div class="modal-body">
+            <form id="form-equipment">
+                <input type="hidden" id="eq-doc-id">
+                <div class="grid-2">
+                    <div class="form-group"><label>Equipment ID*</label><input type="text" id="eq-id" required></div>
+                    <div class="form-group"><label>Name*</label><input type="text" id="eq-name" required></div>
+                    <div class="form-group"><label>Category*</label>
+                        <select id="eq-category" required>
+                            <option value="Chiller">Chiller</option><option value="Cooling Tower">Cooling Tower</option>
+                            <option value="Pump">Pump</option><option value="AHU">AHU</option><option value="FCU">FCU</option>
+                            <option value="Boiler">Boiler</option><option value="Compressor">Compressor</option>
+                            <option value="Motor">Motor</option><option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Serial Number</label><input type="text" id="eq-serial"></div>
+                    <div class="form-group"><label>Brand</label><input type="text" id="eq-brand"></div>
+                    <div class="form-group"><label>Model</label><input type="text" id="eq-model"></div>
+                    <div class="form-group"><label>Location</label><input type="text" id="eq-location"></div>
+                    <div class="form-group"><label>Status</label>
+                        <select id="eq-status">
+                            <option value="Active">Active</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Notes / SOP Reference</label><textarea id="eq-notes"></textarea></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-eq">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PM Plan Modal -->
+    <div id="modal-pm" class="modal hidden">
+        <div class="modal-header"><h3 id="modal-pm-title">PM Plan</h3><button class="btn-icon btn-close-modal">✕</button></div>
+        <div class="modal-body">
+            <form id="form-pm">
+                <input type="hidden" id="pm-doc-id">
+                <div class="form-group">
+                    <label>Equipment*</label>
+                    <input type="text" id="pm-equipment-search" list="eq-list-active" placeholder="Type to search active equipment..." required autocomplete="off">
+                </div>
+                <div class="form-group"><label>Task Name*</label><input type="text" id="pm-task-name" required></div>
+                <div class="grid-2">
+                    <div class="form-group"><label>Interval Value*</label><input type="number" id="pm-interval" min="1" required></div>
+                    <div class="form-group"><label>Interval Unit*</label>
+                        <select id="pm-unit" required>
+                            <option value="Days">Days</option><option value="Weeks">Weeks</option>
+                            <option value="Months">Months</option><option value="Years">Years</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Next Scheduled Date*</label><input type="date" id="pm-next-due" required></div>
+                    <div class="form-group"><label>Status</label>
+                        <select id="pm-status">
+                            <option value="Active">Active</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Checklist Items (One per line)</label><textarea id="pm-checklist" rows="4"></textarea></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-pm">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div id="modal-complete-pm" class="modal hidden">
+        <div class="modal-header"><h3>Complete Maintenance</h3><button class="btn-icon btn-close-modal">✕</button></div>
+        <div class="modal-body">
+            <form id="form-complete-pm">
+                <input type="hidden" id="comp-pm-id">
+                <p id="comp-task-display" class="mb-4 text-bold"></p>
+                <div class="grid-2">
+                    <div class="form-group"><label>Actual Completion Date*</label><input type="date" id="comp-date" required></div>
+                    <div class="form-group"><label>Scheduling Policy For Next Due Date*</label>
+                        <select id="comp-next-due-basis" required>
+                            <option value="schedule">Policy A: Schedule-based (Preserve cadence)</option>
+                            <option value="completion">Policy B: Completion-based (Shift cadence)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Work Performed*</label><textarea id="comp-work" required></textarea></div>
+                <div class="form-group"><label>Checklist Execution</label><div id="comp-checklist-container" class="checklist-grid"></div></div>
+                <div class="form-group"><label>Issues Found / Corrective Action</label><textarea id="comp-issues"></textarea></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="btn-save-completion">Submit Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
