@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Industrial PM Management Dashboard</title>
+    <!-- SheetJS Library for Excel Import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,7 +27,6 @@
                 </div>
                 <div class="auth-actions">
                     <button type="submit" id="btn-login" class="btn btn-primary">Login</button>
-                    <!-- Registration is disabled for public deployment by default, but UI remains for authorized creation if needed -->
                     <button type="button" id="btn-signup" class="btn btn-secondary">Create Account</button>
                 </div>
             </form>
@@ -112,11 +113,15 @@
                                 <option value="All">All</option>
                             </select>
                         </div>
-                        <button id="btn-add-equipment" class="btn btn-primary">+ Add Equipment</button>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <input type="file" id="import-excel-file" accept=".xlsx, .xls, .csv" class="hidden">
+                            <button id="btn-import-excel" class="btn btn-secondary">📥 Import Excel</button>
+                            <button id="btn-add-equipment" class="btn btn-primary">+ Add Equipment</button>
+                        </div>
                     </div>
                     <div class="card table-responsive">
                         <table id="equipment-table">
-                            <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>SL</th><th>ID</th><th>Name</th><th>Category</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
                             <tbody></tbody>
                         </table>
                     </div>
@@ -167,14 +172,14 @@
                             <input type="date" id="filter-from-date">
                             <label class="text-small text-bold">To:</label>
                             <input type="date" id="filter-to-date">
-                            <input type="text" id="search-history" placeholder="Filter by Task/Eq ID (Client-side)">
+                            <input type="text" id="search-history" placeholder="Filter by Task/Eq ID">
                             <button id="btn-load-history" class="btn btn-primary">Load Data</button>
                             <button id="btn-export-csv" class="btn btn-secondary">Export CSV</button>
                         </div>
                     </div>
                     <div class="card table-responsive">
                         <table id="history-table">
-                            <thead><tr><th>Date</th><th>ID</th><th>Eq. Snapshot</th><th>Task Snapshot</th><th>Performed By</th></tr></thead>
+                            <thead><tr><th>Date</th><th>ID</th><th>Eq. Snapshot</th><th>Task Snapshot</th><th>Performed By</th><th>Action</th></tr></thead>
                             <tbody></tbody>
                         </table>
                         <div class="pagination-controls mt-4">
