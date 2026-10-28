@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, startAfter, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, startAfter, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // ==========================================
 // 1. FIREBASE CONFIGURATION
@@ -203,14 +203,14 @@ function attachRealtimeListeners() {
     unsubscribers.forEach(unsub => unsub());
     unsubscribers = [];
 
-    // Equipment (Low volume, safe for Snapshot)
+    // Equipment
     const qEq = query(collection(db, `users/${uid}/equipment`), orderBy("eqId"));
     unsubscribers.push(onSnapshot(qEq, (snap) => {
         state.equipment = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderEquipmentTable(); populateEquipmentDropdown(); updateDashboard();
     }, err => console.error("Eq Sync Error:", err)));
 
-    // PM Plans (Medium volume, safe for Snapshot)
+    // PM Plans
     const qPm = query(collection(db, `users/${uid}/pmPlans`));
     unsubscribers.push(onSnapshot(qPm, (snap) => {
         state.pmPlans = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -267,7 +267,7 @@ function generateNotifications() {
     state.pmPlans.forEach(pm => {
         if(pm.status !== 'Active' || !pm.nextDue) return;
         const diff = Math.ceil((new Date(pm.nextDue) - new Date(today)) / (1000 * 60 * 60 * 24));
-        const lead = 7; // Fixed default for simplicity, can be expanded
+        const lead = 7; 
         
         if(diff <= lead) {
             const eqData = getEqData(pm.equipmentId, pm.equipmentName);
@@ -295,7 +295,8 @@ function renderEquipmentTable() {
     DOM("equipment-table").querySelector("tbody").innerHTML = state.equipment
         .filter(eq => (statusFilter === 'All' || eq.status === statusFilter) &&
                       (eq.name.toLowerCase().includes(term) || eq.eqId.toLowerCase().includes(term)))
-        .map(eq => `<tr>
+        .map((eq, index) => `<tr>
+            <td>${index + 1}</td>
             <td><strong>${escapeHTML(eq.eqId)}</strong></td>
             <td>${escapeHTML(eq.name)}</td>
             <td>${escapeHTML(eq.category)}</td>
@@ -303,6 +304,7 @@ function renderEquipmentTable() {
             <td><span class="status-badge ${eq.status === 'Active' ? 'status-active' : 'status-archived'}">${eq.status}</span></td>
             <td>
                 <button class="btn-icon" onclick="window.editEq('${eq.id}')">✏️</button>
+                <button class="btn-icon" style="color: var(--danger);" onclick="window.deleteEq('${eq.id}')">🗑️</button>
             </td>
         </tr>`).join("");
 }
@@ -331,7 +333,6 @@ DOM("form-equipment").addEventListener("submit", async (e) => {
     const docId = DOM("eq-doc-id").value;
     const eqIdVal = DOM("eq-id").value.trim();
 
-    // Prevent Case-Insensitive Duplicate IDs
     if(state.equipment.some(eq => eq.eqId.toLowerCase() === eqIdVal.toLowerCase() && eq.id !== docId)) {
         showToast("Equipment ID already exists.", "error");
         btn.disabled = false;
@@ -391,6 +392,7 @@ function renderPMTable() {
                 <td>
                     ${pm.status === 'Active' ? `<button class="btn btn-success btn-small" onclick="window.openCompleteModal('${pm.id}')">✓</button>` : ''}
                     <button class="btn-icon" onclick="window.editPm('${pm.id}')">✏️</button>
+                    <button class="btn-icon" style="color: var(--danger);" onclick="window.deletePm('${pm.id}')">🗑️</button>
                 </td>
             </tr>`;
         }).join("");
@@ -447,7 +449,7 @@ window.editPm = (id) => {
 };
 
 // ==========================================
-// 9. HISTORY PAGINATION & EXPORT (Scalable)
+// 9. HISTORY PAGINATION & EXPORT 
 // ==========================================
 const fetchHistoryPage = async (direction = 'initial') => {
     const btnNext = DOM("btn-hist-next"); const btnPrev = DOM("btn-hist-prev");
@@ -456,7 +458,6 @@ const fetchHistoryPage = async (direction = 'initial') => {
     try {
         let q = query(collection(db, `users/${currentUser.uid}/maintenanceHistory`), orderBy("completionDate", "desc"));
         
-        // Date filters
         const fromDate = DOM("filter-from-date").value;
         const toDate = DOM("filter-to-date").value;
         if (fromDate) q = query(q, where("completionDate", ">=", fromDate));
@@ -468,7 +469,7 @@ const fetchHistoryPage = async (direction = 'initial') => {
             q = query(q, startAfter(lastVisibleCursor));
         } else if (direction === 'initial') {
             historyPageNum = 1;
-        } // "Prev" requires careful bi-directional cursors. For simplicity in vanilla JS without breaking constraints, re-fetching from start or keeping array slices is common. To maintain strict limits, we handle basic forward pagination here.
+        } 
         
         const snap = await getDocs(q);
         if(!snap.empty) {
@@ -477,7 +478,7 @@ const fetchHistoryPage = async (direction = 'initial') => {
             renderHistoryTable();
             DOM("hist-page-info").textContent = `Page ${historyPageNum}`;
             if(snap.docs.length === HISTORY_PAGE_SIZE) btnNext.disabled = false;
-            if(historyPageNum > 1) btnPrev.disabled = false; // Note: Proper reverse cursor omitted to keep 3-file constraints manageable. Reloads from start.
+            if(historyPageNum > 1) btnPrev.disabled = false;
         } else {
             if(direction === 'initial') { historyDocs = []; renderHistoryTable(); }
             else showToast("No more records.", "warning");
@@ -487,12 +488,11 @@ const fetchHistoryPage = async (direction = 'initial') => {
 
 DOM("btn-load-history").addEventListener("click", () => fetchHistoryPage('initial'));
 DOM("btn-hist-next").addEventListener("click", () => { historyPageNum++; fetchHistoryPage('next'); });
-DOM("btn-hist-prev").addEventListener("click", () => { historyPageNum = 1; fetchHistoryPage('initial'); }); // Resetting to 1
+DOM("btn-hist-prev").addEventListener("click", () => { historyPageNum = 1; fetchHistoryPage('initial'); }); 
 
 function renderHistoryTable() {
     const term = DOM("search-history").value.toLowerCase();
     const filtered = historyDocs.filter(h => {
-        // Safe fallback for both old and new database records
         const taskText = (h.taskSnapshotName || h.taskName || "").toLowerCase();
         const eqIdText = (h.equipmentSnapshotId || h.equipmentId || "").toLowerCase();
         return taskText.includes(term) || eqIdText.includes(term);
@@ -505,12 +505,12 @@ function renderHistoryTable() {
             <td>${escapeHTML(h.equipmentSnapshotName || h.equipmentName)}</td>
             <td>${escapeHTML(h.taskSnapshotName || h.taskName)}</td>
             <td>${escapeHTML(h.recordedBy)}</td>
+            <td><button class="btn-icon" style="color: var(--danger);" onclick="window.deleteHistory('${h.id}')">🗑️</button></td>
         </tr>`;
-    }).join("") || "<tr><td colspan='5' class='text-center'>No records found</td></tr>";
+    }).join("") || "<tr><td colspan='6' class='text-center'>No records found</td></tr>";
 }
 DOM("search-history").addEventListener("input", renderHistoryTable);
 
-// Server-Side Export logic pulling all matching documents in batches
 DOM("btn-export-csv").addEventListener("click", async () => {
     const btn = DOM("btn-export-csv"); btn.disabled = true; btn.textContent = "Exporting...";
     try {
@@ -518,7 +518,7 @@ DOM("btn-export-csv").addEventListener("click", async () => {
         if (DOM("filter-from-date").value) q = query(q, where("completionDate", ">=", DOM("filter-from-date").value));
         if (DOM("filter-to-date").value) q = query(q, where("completionDate", "<=", DOM("filter-to-date").value));
         
-        const snap = await getDocs(q); // If exceeding 10k, requires batching. Assuming standard usage.
+        const snap = await getDocs(q);
         if(snap.empty) return showToast("No records match export criteria", "warning");
 
         const headers = ["Completion Date", "Equipment ID", "Equipment Name", "Task", "Scheduled Due", "Work Performed", "Issues Found", "Recorded By"];
@@ -573,7 +573,6 @@ window.openCompleteModal = (pmId) => {
 DOM("form-complete-pm").addEventListener("submit", async (e) => {
     e.preventDefault();
     
-    // Checklist Validation Loop
     const checklistResults = [];
     const selects = DOM("comp-checklist-container").querySelectorAll(".cl-select");
     for (let sel of selects) {
@@ -590,7 +589,6 @@ DOM("form-complete-pm").addEventListener("submit", async (e) => {
     const policy = DOM("comp-next-due-basis").value;
     let baseDate = policy === 'completion' ? compDateStr : pm.nextDue;
     
-    // Core Fix: Prevent overdue schedule trap (Fast-forward to next future date)
     let nextDue = calculateNextDueDate(baseDate, pm.interval, pm.unit);
     if (policy === 'schedule') {
         const today = getLocalTodayStr();
@@ -637,8 +635,6 @@ function renderCalendar() {
     const tasksByDate = {};
     state.pmPlans.forEach(pm => {
         if(pm.status === 'Active' && pm.nextDue) {
-            // Include actual nextDue, but do not aggressively forecast entire lifespan to save memory. 
-            // In a production system, forecast generating logic would run here up to month boundary.
             if(pm.nextDue.startsWith(`${year}-${String(month+1).padStart(2,'0')}`)) {
                 if(!tasksByDate[pm.nextDue]) tasksByDate[pm.nextDue] = [];
                 tasksByDate[pm.nextDue].push(pm);
@@ -695,4 +691,114 @@ document.addEventListener("click", (e) => {
         e.preventDefault();
         window.closeModals();
     }
+});
+
+// ==========================================
+// 13. DELETE OPERATIONS
+// ==========================================
+window.deleteEq = async (id) => {
+    if(!confirm("Are you sure you want to delete this equipment?")) return;
+    try {
+        await deleteDoc(doc(db, `users/${currentUser.uid}/equipment`, id));
+        showToast("Equipment deleted successfully");
+    } catch (err) { showToast(err.message, "error"); }
+};
+
+window.deletePm = async (id) => {
+    if(!confirm("Are you sure you want to delete this PM Plan?")) return;
+    try {
+        await deleteDoc(doc(db, `users/${currentUser.uid}/pmPlans`, id));
+        showToast("PM Plan deleted successfully");
+    } catch (err) { showToast(err.message, "error"); }
+};
+
+window.deleteHistory = async (id) => {
+    if(!confirm("Are you sure you want to delete this history record?")) return;
+    try {
+        await deleteDoc(doc(db, `users/${currentUser.uid}/maintenanceHistory`, id));
+        showToast("History record deleted");
+        fetchHistoryPage('initial');
+    } catch (err) { showToast(err.message, "error"); }
+};
+
+// ==========================================
+// 14. EXCEL IMPORT (Equipment - With Duplicate Check)
+// ==========================================
+DOM("btn-import-excel").addEventListener("click", () => {
+    DOM("import-excel-file").click();
+});
+
+DOM("import-excel-file").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+            if (jsonData.length === 0) {
+                return showToast("The Excel file is empty.", "error");
+            }
+
+            const batch = writeBatch(db);
+            let addedCount = 0;
+            let updatedCount = 0;
+
+            jsonData.forEach((row) => {
+                const rawEqId = row.eqId || row.ID || row.id || row.EquipmentID || row["Equipment ID"];
+                const rawName = row.name || row.Name || row.EquipmentName || row["Equipment Name"];
+                const rawCategory = row.category || row.Category || "Other";
+
+                if (rawEqId && rawName) {
+                    const eqIdStr = String(rawEqId).trim();
+                    
+                    // Check if machine ID already exists in current state
+                    const existingEq = state.equipment.find(eq => eq.eqId.toLowerCase() === eqIdStr.toLowerCase());
+                    
+                    const equipmentData = {
+                        eqId: eqIdStr,
+                        name: String(rawName).trim(),
+                        category: String(rawCategory).trim(),
+                        serial: String(row.serial || row.Serial || "").trim(),
+                        brand: String(row.brand || row.Brand || "").trim(),
+                        model: String(row.model || row.Model || "").trim(),
+                        location: String(row.location || row.Location || "").trim(),
+                        status: "Active",
+                        updatedAt: serverTimestamp()
+                    };
+
+                    if (existingEq) {
+                        // ID exists -> Update the existing document
+                        const docRef = doc(db, `users/${currentUser.uid}/equipment`, existingEq.id);
+                        batch.update(docRef, equipmentData);
+                        updatedCount++;
+                    } else {
+                        // ID doesn't exist -> Create a new document
+                        equipmentData.notes = "Imported from Excel";
+                        equipmentData.createdAt = serverTimestamp();
+                        const newDocRef = doc(collection(db, `users/${currentUser.uid}/equipment`));
+                        batch.set(newDocRef, equipmentData);
+                        addedCount++;
+                    }
+                }
+            });
+
+            if (addedCount > 0 || updatedCount > 0) {
+                await batch.commit();
+                showToast(`${addedCount} new added, ${updatedCount} updated successfully!`);
+            } else {
+                showToast("No valid data found. Check your column headers.", "warning");
+            }
+        } catch (err) {
+            showToast("Error reading file: " + err.message, "error");
+        } finally {
+            DOM("import-excel-file").value = ""; 
+        }
+    };
+    reader.readAsArrayBuffer(file);
 });
