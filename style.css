@@ -160,3 +160,8 @@ th { background: rgba(0,0,0,0.02); font-weight: 600; }
     .calendar-grid { font-size: 0.8rem; }
     .cal-day { min-height: 60px; padding: 0.2rem; }
 }
+
+/* ID text jeno kokhono break na kore ek line e thake */
+td strong {
+    white-space: nowrap;
+}
